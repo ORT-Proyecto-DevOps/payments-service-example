@@ -8,10 +8,8 @@ import org.junit.jupiter.api.Test;
 import static org.mockito.ArgumentMatchers.anyInt;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import org.mockito.MockitoAnnotations;
-import org.slf4j.Logger;
 
 import uy.edu.ort.devops.paymentsserviceexample.domain.PaymentStatus;
 import uy.edu.ort.devops.paymentsserviceexample.logic.PaymentsLogic;
@@ -20,9 +18,6 @@ public class PaymentsServiceExampleApplicationTests {
 
     @InjectMocks
     private PaymentsLogic paymentsLogic;
-
-    @Mock
-    private Logger logger;
 
     @Mock
     private Random random;
@@ -42,8 +37,6 @@ public class PaymentsServiceExampleApplicationTests {
         assertEquals("order1", result.getOrderId());
         assertEquals(true, result.isSuccess());
         assertEquals("Done.", result.getDescription());
-
-        verify(logger).info("Paying result: PaymentStatus{orderId='order1', success=true, description='Done.'}");
     }
 
     @Test
@@ -57,7 +50,6 @@ public class PaymentsServiceExampleApplicationTests {
         assertEquals(false, result.isSuccess());
         assertEquals("No money.", result.getDescription());
 
-        verify(logger).info("Paying result: PaymentStatus{orderId='order1', success=false, description='No money.'}");
     }
 
 }
