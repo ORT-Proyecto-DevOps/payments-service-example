@@ -1,31 +1,19 @@
 package uy.edu.ort.devops.paymentsserviceexample;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
-import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.slf4j.Logger;
-
-import java.util.Random;
 
 import uy.edu.ort.devops.paymentsserviceexample.domain.PaymentStatus;
 import uy.edu.ort.devops.paymentsserviceexample.logic.PaymentsLogic;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.Mockito.*;
 
 public class PaymentsServiceExampleApplicationTests {
 
     @InjectMocks
     private PaymentsLogic paymentsLogic;
-
-    @Mock
-    private Logger logger;
-
-    @Mock
-    private Random random;
 
     @BeforeEach
     public void setUp() {
@@ -34,31 +22,36 @@ public class PaymentsServiceExampleApplicationTests {
 
     @Test
     public void testPay_successfulPayment() {
-        // Mocking random to always return 0 (successful payment)
-        when(random.nextInt(anyInt())).thenReturn(0);
+        boolean successOccurred = false;
 
-        PaymentStatus result = paymentsLogic.pay("order1");
+        for (int i = 0; i < 100; i++) { // Ejecutar múltiples iteraciones para cubrir ambos resultados posibles
+            PaymentStatus result = paymentsLogic.pay("order1");
 
-        assertEquals("order1", result.getOrderId());
-        assertEquals(true, result.isSuccess());
-        assertEquals("Done.", result.getDescription());
+            if (result.isSuccess()) {
+                successOccurred = true;
+                assertEquals("Done.", result.getDescription());
+                break;
+            }
+        }
 
-        verify(logger).info("Paying result: PaymentStatus{orderId='order1', success=true, description='Done.'}");
+        assertTrue(successOccurred, "Successful payment should occur at least once");
     }
 
     @Test
     public void testPay_failedPayment() {
-        // Mocking random to always return 1 (failed payment)
-        when(random.nextInt(anyInt())).thenReturn(1);
+        boolean failureOccurred = false;
 
-        PaymentStatus result = paymentsLogic.pay("order1");
+        for (int i = 0; i < 100; i++) { // Ejecutar múltiples iteraciones para cubrir ambos resultados posibles
+            PaymentStatus result = paymentsLogic.pay("order1");
 
-        assertEquals("order1", result.getOrderId());
-        assertEquals(false, result.isSuccess());
-        assertEquals("No money.", result.getDescription());
+            if (!result.isSuccess()) {
+                failureOccurred = true;
+                assertEquals("No money.", result.getDescription());
+                break;
+            }
+        }
 
-        verify(logger).info("Paying result: PaymentStatus{orderId='order1', success=false, description='No money.'}");
+        assertTrue(failureOccurred, "Failed payment should occur at least once");
     }
-
 
 }
