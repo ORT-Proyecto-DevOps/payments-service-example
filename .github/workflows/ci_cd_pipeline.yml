@@ -111,7 +111,7 @@ jobs:
 
   push_image_ecr:
     runs-on: ubuntu-latest
-    needs: build
+    needs: test
     steps:
       - uses: actions/checkout@v3
         with:
