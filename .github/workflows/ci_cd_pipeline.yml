@@ -161,14 +161,30 @@ jobs:
         run: |
           TASK_DEFINITION_NAME="aws_ecs_be_tasks-payments-service-${{ inputs.ENV }}"
           TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition $TASK_DEFINITION_NAME)
-          NEW_TASK_DEFINITION=$(echo $TASK_DEFINITION | jq --arg IMAGE "$${{ secrets.ECR_REGISTRY }}/$${{ secrets.ECR_REPOSITORY }}:$${{ inputs.IMAGE_TAG }}" '.taskDefinition.containerDefinitions[0].image = $IMAGE')
+          NEW_TASK_DEFINITION=$(echo $TASK_DEFINITION | jq --arg IMAGE "${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}:${{ inputs.IMAGE_TAG }}" '.taskDefinition.containerDefinitions[0].image = $IMAGE')
           NEW_TASK_DEF_REVISION=$(echo $NEW_TASK_DEFINITION | jq '.taskDefinition' | jq 'del(.status,.taskDefinitionArn,.revision,.requiresAttributes,.compatibilities,.registeredAt,.registeredBy)')
           echo "$NEW_TASK_DEF_REVISION" > new-task-def.json
           aws ecs register-task-definition --cli-input-json file://new-task-def.json
-  
+
       - name: Deploy to ECS Service
         run: |
           CLUSTER_NAME="aws-ecs-be-${{ inputs.ENV }}-cluster"
           SERVICE_NAME="aws-ecs-be-payments-service-${{ inputs.ENV }}"
           NEW_TASK_DEF_ARN=$(aws ecs describe-task-definition --task-definition aws_ecs_be_tasks-payments-service-${{ inputs.ENV }} | jq -r '.taskDefinition.taskDefinitionArn')
           aws ecs update-service --cluster $CLUSTER_NAME --service $SERVICE_NAME --task-definition $NEW_TASK_DEF_ARN
+
+      - name: Deregister Old Task Definitions
+        run: |
+          OLD_TASK_DEFINITIONS=$(aws ecs list-task-definitions --family-prefix $TASK_DEFINITION_NAME --status ACTIVE --query "taskDefinitionArns[?revision<\`$(echo $NEW_TASK_DEF_ARN | cut -d'/' -f2 | cut -d':' -f2)\`]" --output text)
+          for task_def in $OLD_TASK_DEFINITIONS; do
+            aws ecs deregister-task-definition --task-definition $task_def
+          done
+
+      - name: Stop Old Tasks
+        run: |
+          CLUSTER_NAME="aws-ecs-be-${{ inputs.ENV }}-cluster"
+          SERVICE_NAME="aws-ecs-be-payments-service-${{ inputs.ENV }}"
+          OLD_TASKS=$(aws ecs list-tasks --cluster $CLUSTER_NAME --service-name $SERVICE_NAME --desired-status RUNNING --query "taskArns" --output text)
+          for task in $OLD_TASKS; do
+            aws ecs stop-task --cluster $CLUSTER_NAME --task $task
+          done
