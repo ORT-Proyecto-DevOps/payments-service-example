@@ -3,13 +3,13 @@ name: Github Action Workflow CI/CD
 on:
   workflow_call:
     inputs:
-      CI_ENV:
-        required: true
-        type: string
       IMAGE_TAG:
         required: true
         type: string
       BRANCH:
+        required: true
+        type: string
+      ENV:
         required: true
         type: string
     secrets:
@@ -154,4 +154,20 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
+          
+      - name: Update Task Definition
+        id: update_task_definition
+        run: |
+          TASK_DEFINITION_NAME="aws_ecs_be_tasks-payments-service-${{ inputs.ENV }}"
+          TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition $TASK_DEFINITION_NAME)
+          NEW_TASK_DEFINITION=$(echo $TASK_DEFINITION | jq --arg IMAGE "$${{ secrets.ECR_REGISTRY }}/$${{ secrets.ECR_REPOSITORY }}:$${{ inputs.IMAGE_TAG }}" '.taskDefinition.containerDefinitions[0].image = $IMAGE')
+          NEW_TASK_DEF_REVISION=$(echo $NEW_TASK_DEFINITION | jq '.taskDefinition' | jq 'del(.status,.taskDefinitionArn,.revision,.requiresAttributes,.compatibilities,.registeredAt,.registeredBy)')
+          echo "$NEW_TASK_DEF_REVISION" > new-task-def.json
+          aws ecs register-task-definition --cli-input-json file://new-task-def.json
+  
+      - name: Deploy to ECS Service
+        run: |
+          CLUSTER_NAME="aws-ecs-be-${{ inputs.ENV }}-cluster"
+          SERVICE_NAME="aws-ecs-be-payments-service-${{ inputs.ENV }}"
+          NEW_TASK_DEF_ARN=$(aws ecs describe-task-definition --task-definition aws_ecs_be_tasks-payments-service-${{ inputs.ENV }} | jq -r '.taskDefinition.taskDefinitionArn')
+          aws ecs update-service --cluster $CLUSTER_NAME --service $SERVICE_NAME --task-definition $NEW_TASK_DEF_ARN
