@@ -159,7 +159,7 @@ jobs:
       - name: Update Task Definition
         id: update_task_definition
         run: |
-          TASK_DEFINITION_NAME="aws_ecs_be_tasks-payments-service-${{ inputs.ENV }}"
+          TASK_DEFINITION_NAME="aws-ecs-payments-task-${{ inputs.ENV }}"
           TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition $TASK_DEFINITION_NAME)
           NEW_TASK_DEFINITION=$(echo $TASK_DEFINITION | jq --arg IMAGE "${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}:${{ inputs.IMAGE_TAG }}" '.taskDefinition.containerDefinitions[0].image = $IMAGE')
           NEW_TASK_DEF_REVISION=$(echo $NEW_TASK_DEFINITION | jq '.taskDefinition' | jq 'del(.status,.taskDefinitionArn,.revision,.requiresAttributes,.compatibilities,.registeredAt,.registeredBy)')
@@ -168,15 +168,15 @@ jobs:
 
       - name: Deploy to ECS Service
         run: |
-          CLUSTER_NAME="aws-ecs-be-${{ inputs.ENV }}-cluster"
-          SERVICE_NAME="aws-ecs-be-payments-service-${{ inputs.ENV }}"
-          NEW_TASK_DEF_ARN=$(aws ecs describe-task-definition --task-definition aws_ecs_be_tasks-payments-service-${{ inputs.ENV }} | jq -r '.taskDefinition.taskDefinitionArn')
+          CLUSTER_NAME="aws-ecs-${{ inputs.ENV }}"
+          SERVICE_NAME="aws-ecs-payments-service-${{ inputs.ENV }}"
+          NEW_TASK_DEF_ARN=$(aws ecs describe-task-definition --task-definition aws-ecs-payments-task-${{ inputs.ENV }} | jq -r '.taskDefinition.taskDefinitionArn')
           aws ecs update-service --cluster $CLUSTER_NAME --service $SERVICE_NAME --task-definition $NEW_TASK_DEF_ARN
   
       - name: Stop Old Tasks
         run: |
-          CLUSTER_NAME="aws-ecs-be-${{ inputs.ENV }}-cluster"
-          SERVICE_NAME="aws-ecs-be-payments-service-${{ inputs.ENV }}"
+          CLUSTER_NAME="aws-ecs-${{ inputs.ENV }}"
+          SERVICE_NAME="aws-ecs-payments-service-${{ inputs.ENV }}"
           OLD_TASKS=$(aws ecs list-tasks --cluster $CLUSTER_NAME --service-name $SERVICE_NAME --desired-status RUNNING --query "taskArns" --output text)
           for task in $OLD_TASKS; do
             aws ecs stop-task --cluster $CLUSTER_NAME --task $task
